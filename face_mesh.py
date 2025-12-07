@@ -1,5 +1,5 @@
 """
-Docstring for face_mesh
+This is the face mesh detection pipeline using MediaPipe and OpenCV.
 """
 
 import cv2
