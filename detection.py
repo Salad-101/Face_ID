@@ -42,6 +42,7 @@ class FaceDetector:
         
         return frame, faces
 
+
 def main():
     # Initialize camera and frametime
     cap = cv2.VideoCapture(0)
