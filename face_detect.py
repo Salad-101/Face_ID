@@ -44,7 +44,7 @@ class FaceDetector:
         
         return frame, faces
 
-
+# The main function for standalone testing
 def main():
     
     # Initialize camera and frametime
