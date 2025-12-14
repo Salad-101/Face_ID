@@ -27,7 +27,7 @@ class FaceDetector:
         # Check for face(s)
         if self.results.detections:
             for id, detection in enumerate(self.results.detections):
-                self.mpDraw.draw_detection(frame, detection)                # Draws bounding box
+                #self.mpDraw.draw_detection(frame, detection)                # Draws bounding box
                 bboxC = detection.location_data.relative_bounding_box       # Get bounding box
                 ih, iw, ic = frame.shape                                    # Get image dimensions
                 
@@ -36,9 +36,7 @@ class FaceDetector:
                 
                 faces.append((id, bbox, detection.score))                   # Append face data
                 
-                cv2.putText(frame, f'ID: {id}, Score: {int(detection.score[0]*100)}%',
-                            (bbox[0], bbox[1]-20), cv2.FONT_HERSHEY_PLAIN,
-                            1, (0, 255, 0), 2)                              # Label with ID and Score
+                #cv2.putText(frame, f'ID: {id}, Score: {int(detection.score[0]*100)}%', (bbox[0], bbox[1]-20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 2)                              # Label with ID and Score
         
         return frame, faces
 
