@@ -34,12 +34,12 @@ class FaceDetector:
                 bbox = int(bboxC.xmin * iw), \
                        int(bboxC.ymin * ih), \
                        int(bboxC.width * iw), \
-                       int(bboxC.height * ih)           # Convert to pixel values
+                       int(bboxC.height * ih)                               # Convert to pixel values
                 
                 faces.append((id, bbox, detection.score))                   # Append face data
                 
                 """ I removed the drawing functions to reduce overhead in the flask app """
-                #self.mpDraw.draw_detection(frame, detection)                # Draws bounding box
+                #self.mpDraw.draw_detection(frame, detection)
                 #cv2.putText(frame, f'ID: {id}, Score: {int(detection.score[0]*100)}%', (bbox[0], bbox[1]-20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 2)                              # Label with ID and Score
         
         return frame, faces
