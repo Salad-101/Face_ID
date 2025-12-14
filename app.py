@@ -1,6 +1,7 @@
 """
 This is the flask port for the face detection pipeline
 """
+
 from flask import Flask, render_template, Response, jsonify
 import cv2
 from face_detect import FaceDetector
