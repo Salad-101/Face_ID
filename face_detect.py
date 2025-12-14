@@ -1,5 +1,5 @@
 """
-This is the detection pipeline of the project using MediaPipe and OpenCV.
+This is the detection pipeline of the project.
 """
 
 import cv2
@@ -24,18 +24,21 @@ class FaceDetector:
         self.results = self.faceDetection.process(frameRGB)
         faces = []
 
-        # Check for face(s)
+        # Check for faces
         if self.results.detections:
             for id, detection in enumerate(self.results.detections):
                 
                 bboxC = detection.location_data.relative_bounding_box       # Get bounding box
                 ih, iw, ic = frame.shape                                    # Get image dimensions
                 
-                bbox = int(bboxC.xmin * iw), int(bboxC.ymin * ih), \
-                    int(bboxC.width * iw), int(bboxC.height * ih)           # Convert to pixel values
+                bbox = int(bboxC.xmin * iw), \
+                       int(bboxC.ymin * ih), \
+                       int(bboxC.width * iw), \
+                       int(bboxC.height * ih)           # Convert to pixel values
                 
                 faces.append((id, bbox, detection.score))                   # Append face data
                 
+                """ I removed the drawing functions to reduce overhead in the flask app """
                 #self.mpDraw.draw_detection(frame, detection)                # Draws bounding box
                 #cv2.putText(frame, f'ID: {id}, Score: {int(detection.score[0]*100)}%', (bbox[0], bbox[1]-20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 2)                              # Label with ID and Score
         
