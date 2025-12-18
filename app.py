@@ -1,5 +1,7 @@
 """
-This is the flask port for the detection pipeline.
+This is the flask port for the detection pipeline. It uses the FaceDetector class from face_detect.py.
+This file is the intended entry point for running the web application. After running this file, navigate to
+http://localhost:5000 in your web browser to view the video feed with face detection.
 """
 
 from flask import Flask, render_template, Response, jsonify

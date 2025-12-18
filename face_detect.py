@@ -1,5 +1,6 @@
 """
-This is the detection pipeline of the project.
+This is the main detection pipleine of the project.
+It is intended to be used as a module in app.py, but can be ran separately for testing.
 """
 
 import cv2
@@ -38,13 +39,13 @@ class FaceDetector:
                 
                 faces.append((id, bbox, detection.score))                   # Append face data
                 
-                """ I removed the drawing functions to reduce overhead in the flask app """
-                #self.mpDraw.draw_detection(frame, detection)
-                #cv2.putText(frame, f'ID: {id}, Score: {int(detection.score[0]*100)}%', (bbox[0], bbox[1]-20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 2)                              # Label with ID and Score
+                """ You may remove the drawing functions to reduce overhead in the flask app """
+                self.mpDraw.draw_detection(frame, detection)
+                cv2.putText(frame, f'ID: {id}, Score: {int(detection.score[0]*100)}%', (bbox[0], bbox[1]-20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 2)                              # Label with ID and Score
         
         return frame, faces
 
-# The main function for standalone testing
+# The main function for standalone testing if needed
 def main():
     
     # Initialize camera and frametime
