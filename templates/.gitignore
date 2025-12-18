@@ -1,0 +1,13 @@
+.vscode/
+dataset/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+logs/
+output/
+temp/
+demo/
+face/
+face_rec/
+beta/
