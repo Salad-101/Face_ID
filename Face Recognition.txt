@@ -1,0 +1,15 @@
+Decompostion:
+
+Input Image
+   ↓
+Face Detection
+   ↓
+Face Encoding
+   ↓
+Compare with JSON data
+   ↓
+IF match found?
+   ├── Yes → Show Name + ID
+   └── No  → Ask user for Name + ID
+               ↓
+            Save to JSON
