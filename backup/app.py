@@ -2,15 +2,17 @@
 This is the main Flask application for real-time face recognition. It streams video from the webcam,
 detects and recognizes faces using the FaceRecognition module, and allows registering new faces.
 """
+
 from flask import Flask, render_template, Response, request, jsonify
-import cv2, numpy as np
+import cv2
+import numpy as np
 from faces import FaceRecognition
 
 app = Flask(__name__)
 fr = FaceRecognition()
 cap = cv2.VideoCapture(0)
 face_count = 0
-current_frame_faces = []
+current_frame_faces = []  # Store detected faces for registration
 
 def generate_frames():
     global face_count, current_frame_faces
@@ -29,12 +31,15 @@ def generate_frames():
             cv2.putText(frame, name, (left, top - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
+            # Save unknown faces for possible registration
             if name == "Unknown":
                 face_crop = frame[top:bottom, left:right]
                 current_frame_faces.append((encoding, face_crop))
 
         ret, buffer = cv2.imencode('.jpg', frame)
-        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 @app.route('/video_feed')
 def video_feed():
@@ -46,19 +51,36 @@ def faces_count():
 
 @app.route('/register_face', methods=['POST'])
 def register_face():
+    """Register the first unknown face detected in the frame"""
     name = request.form.get("name")
-    dob = request.form.get("dob")
-    nid = request.form.get("nid")
-    extra_data = {"dob": dob, "national_id": nid}
-
     if not name:
-        return jsonify({"success": False, "message": "Name required."})
+        return jsonify({"success": False, "message": "Name is required."})
+
     if not current_frame_faces:
         return jsonify({"success": False, "message": "No unknown face to register."})
 
     encoding, face_crop = current_frame_faces[0]
-    fr.register_face(encoding, name, face_crop, extra_data)
-    return jsonify({"success": True, "message": f"Face registered as {name}."})
+    fr.register_face(encoding, name, face_crop)
+    return jsonify({"success": True, "message": f"Face registered as {name}"})
+
+@app.route('/upload_face', methods=['POST'])
+def upload_face():
+    """Optional: register face from uploaded image"""
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "No file uploaded."})
+
+    file = request.files['file']
+    name = request.form.get("name", "Unknown")
+    npimg = np.frombuffer(file.read(), np.uint8)
+    img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+
+    face_locations, _, face_encodings = fr.detect_and_recognize(img)
+    if not face_locations:
+        return jsonify({"success": False, "message": "No face found in image."})
+
+    # Register first face
+    fr.register_face(face_encodings[0], name, img)
+    return jsonify({"success": True, "message": f"Face registered as {name}"})
 
 @app.route('/')
 def index():

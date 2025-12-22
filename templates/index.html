@@ -1,140 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Face Recognition</title>
-        <style>
-            body { 
-                font-family: 'Segoe UI', sans-serif; 
-                background:#0e0e0e; color:#f0f0f0; 
-                display:flex; align-items:center; 
-                justify-content:center; 
-                height:100vh; 
-                margin:0; 
-            }
-            .wrapper { 
-                display:flex; 
-                align-items:center; 
-                justify-content:center; 
-                gap:50px; 
-            }
-            .video-container { 
-                position:relative; 
-                width:640px; 
-                height:480px; 
-                border:3px solid #00ff88; 
-                border-radius:10px; 
-                overflow:hidden; 
-                box-shadow:0 0 15px #00ff88; 
-            }
-            img { 
-                width:100%; 
-                height:100%; 
-                object-fit:cover; 
-                border-radius:10px; 
-            }
-            .controls { 
-                display:flex; 
-                flex-direction:column; 
-                align-items:center; 
-                gap:15px; 
-            }
-            h1 { 
-                color:#00ff88; 
-                margin-bottom:10px; 
-            }
-            button { 
-                background-color:#00ff88; 
-                color:#0e0e0e; 
-                border:none; 
-                padding:12px 25px; 
-                font-size:18px; 
-                border-radius:8px; 
-                cursor:pointer; 
-                transition:0.3s; 
-                box-shadow:0 0 10px #00ff88; 
-            }
-            button:hover { 
-                transform: scale(1.05); 
-            }
-            #status { 
-                margin-top:15px; 
-                font-size:18px; 
-                color:#bbb; 
-                text-align:center; 
-                transition: color 0.3s; 
-            }
-            #faces { 
-                font-size:18px; 
-                color:#00ff88; 
-                margin-top:10px; 
-            }
-            #nameInput { 
-                padding:6px; 
-                border-radius:6px; 
-                border:none; 
-                margin-top:5px; 
-            }
-        </style>
-    </head>
-    <body>
-        <div class="wrapper">
-            <div class="video-container">
-                <img id="videoFeed" src="" alt="Camera Feed" />
-            </div>
-            <div class="controls">
-                <h1>Face Recognition</h1>
-                <button id="toggleBtn">Start Detection</button>
-                <p id="status">Click "Start Detection" to begin</p>
-                <p id="faces">Found 0 faces</p>
-                <input id="nameInput" type="text" placeholder="Enter name to register">
-                <button id="registerBtn">Register Unknown</button>
-            </div>
-        </div>
-        <script>
-            const toggleBtn = document.getElementById('toggleBtn');
-            const statusText = document.getElementById('status');
-            const facesText = document.getElementById('faces');
-            const videoFeed = document.getElementById('videoFeed');
-            const registerBtn = document.getElementById('registerBtn');
-            const nameInput = document.getElementById('nameInput');
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Recognition</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="wrapper">
+  <div class="video-container">
+    <img id="videoFeed" src="" alt="Camera Feed">
+    <p id="faces">Found 0 faces</p>
+    <button id="toggleBtn">Start Detection</button>
+  </div>
 
-            let detecting = false;
-            let updateInterval = null;
+  <div class="register-form">
+    <h2>Register Face</h2>
+    <input type="text" id="nameInput" placeholder="Full Name">
+    <input type="date" id="dobInput" placeholder="Date of Birth">
+    <input type="text" id="nidInput" placeholder="National ID">
+    <button id="registerBtn">Register Unknown</button>
+    <p id="status"></p>
+  </div>
+</div>
 
-            function startDetection() {
-                detecting = true;
-                toggleBtn.textContent = "Stop Detection";
-                statusText.textContent = "Detection running...";
-                videoFeed.src = "/video_feed";
-                updateInterval = setInterval(async () => {
-                    const res = await fetch("/faces_count");
-                    const data = await res.json();
-                    facesText.textContent = `Found ${data.faces} face${data.faces!==1?'s':''}`;
-                }, 500);
-            }
+<script>
+const toggleBtn = document.getElementById('toggleBtn');
+const facesText = document.getElementById('faces');
+const videoFeed = document.getElementById('videoFeed');
+const status = document.getElementById('status');
+let detecting = false, updateInterval = null;
 
-            function stopDetection() {
-                detecting = false;
-                toggleBtn.textContent = "Start Detection";
-                statusText.textContent = "Detection stopped.";
-                facesText.textContent = "Found 0 faces";
-                videoFeed.src = "";
-                clearInterval(updateInterval);
-            }
+function startDetection(){
+  detecting = true;
+  toggleBtn.textContent = "Stop Detection";
+  videoFeed.src = "/video_feed";
+  updateInterval = setInterval(async ()=>{
+    const res = await fetch("/faces_count");
+    const data = await res.json();
+    facesText.textContent = `Found ${data.faces} face${data.faces!==1?'s':''}`;
+  },500);
+}
+function stopDetection(){
+  detecting = false;
+  toggleBtn.textContent = "Start Detection";
+  facesText.textContent = "Found 0 faces";
+  videoFeed.src = "";
+  clearInterval(updateInterval);
+}
+toggleBtn.addEventListener("click",()=>detecting?stopDetection():startDetection());
 
-            toggleBtn.addEventListener("click", () => { detecting?stopDetection():startDetection(); });
-
-            registerBtn.addEventListener("click", async () => {
-            const name = nameInput.value.trim();
-            if(!name){ alert("Enter a name to register"); return; }
-            const form = new FormData();
-            form.append("name", name);
-            const res = await fetch("/register_face", { method:"POST", body: form });
-            const data = await res.json();
-            alert(data.message);
-            });
-        </script>
-    </body>
+document.getElementById('registerBtn').addEventListener("click",async ()=>{
+  const name = document.getElementById("nameInput").value.trim();
+  const dob = document.getElementById("dobInput").value;
+  const nid = document.getElementById("nidInput").value.trim();
+  if(!name){status.textContent="Enter name to register.";return;}
+  const form = new FormData();
+  form.append("name", name);
+  form.append("dob", dob);
+  form.append("nid", nid);
+  const res = await fetch("/register_face",{method:"POST",body:form});
+  const data = await res.json();
+  status.textContent = data.message;
+});
+</script>
+</body>
 </html>
