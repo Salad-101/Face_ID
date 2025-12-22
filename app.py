@@ -2,39 +2,50 @@
 This is the main Flask application for real-time face recognition. It streams video from the webcam,
 detects and recognizes faces using the FaceRecognition module, and allows registering new faces.
 """
+
 from flask import Flask, render_template, Response, request, jsonify
-import cv2
+import cv2, numpy as np
 from faces import FaceRecognition
 
 app = Flask(__name__)
 fr = FaceRecognition()
-cap = cv2.VideoCapture(0)
+
+cap = None
+detecting = False
+
 face_count = 0
 current_frame_faces = []
 
 def generate_frames():
-    global face_count, current_frame_faces
+    global cap, face_count, current_frame_faces, detecting
     while True:
-        success, frame = cap.read()
-        if not success:
-            break
+        if detecting and cap is not None:
+            success, frame = cap.read()
+            if not success:
+                continue
 
-        face_locations, names, encodings = fr.detect_and_recognize(frame)
-        face_count = len(face_locations)
-        current_frame_faces = []
+            face_locations, names, encodings = fr.detect_and_recognize(frame)
+            face_count = len(face_locations)
+            current_frame_faces = []
 
-        for (top, right, bottom, left), name, encoding in zip(face_locations, names, encodings):
-            color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
-            cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
-            cv2.putText(frame, name, (left, top - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            for (top, right, bottom, left), name, encoding in zip(face_locations, names, encodings):
+                color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
+                cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+                cv2.putText(frame, name, (left, top - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-            if name == "Unknown":
-                face_crop = frame[top:bottom, left:right]
-                current_frame_faces.append((encoding, face_crop))
+                if name == "Unknown":
+                    face_crop = frame[top:bottom, left:right]
+                    current_frame_faces.append((encoding, face_crop))
 
-        ret, buffer = cv2.imencode('.jpg', frame)
-        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        else:
+            # If not detecting, yield empty frames so the stream doesn't break
+            blank = np.zeros((480, 640, 3), dtype=np.uint8)
+            ret, buffer = cv2.imencode('.jpg', blank)
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
 @app.route('/video_feed')
 def video_feed():
@@ -59,6 +70,23 @@ def register_face():
     encoding, face_crop = current_frame_faces[0]
     fr.register_face(encoding, name, face_crop, extra_data)
     return jsonify({"success": True, "message": f"Face registered as {name}."})
+
+@app.route('/toggle_detection', methods=['POST'])
+def toggle_detection():
+    global detecting, cap
+    action = request.json.get("action")
+    if action == "start":
+        if not detecting:
+            cap = cv2.VideoCapture(0)
+            detecting = True
+        return jsonify({"success": True, "status": "started"})
+    elif action == "stop":
+        detecting = False
+        if cap is not None:
+            cap.release()
+            cap = None
+        return jsonify({"success": True, "status": "stopped"})
+    return jsonify({"success": False, "message": "Invalid action"})
 
 @app.route('/')
 def index():

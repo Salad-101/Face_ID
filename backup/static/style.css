@@ -43,7 +43,7 @@ body {
 #toggleBtn {
   background-color: #00ff88;
   color: #0e0e0e;
-  border: none;
+  border: 2px solid #00ff88;
   padding: 10px 22px;
   font-size: 16px;
   border-radius: 8px;
