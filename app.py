@@ -3,7 +3,7 @@ This is the main Flask application for real-time face recognition. It streams vi
 detects and recognizes faces using the FaceRecognition module, and allows registering new faces.
 """
 from flask import Flask, render_template, Response, request, jsonify
-import cv2, numpy as np
+import cv2
 from faces import FaceRecognition
 
 app = Flask(__name__)
