@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Recognition</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script defer src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar" class="sidebar">
+    <button class="sidebar-btn active" data-page="videoPage">
+        <img src="{{ url_for('static', filename='assets/camera.png') }}" alt="Feed" class="img-btn">
+    </button>
+    <button class="sidebar-btn" data-page="detectedPage">
+        <img src="{{ url_for('static', filename='assets/face.png') }}" alt="Face" class="img-btn">
+    </button>
+    <button class="sidebar-btn" data-page="registerPage">
+        <img src="{{ url_for('static', filename='assets/plus.png') }}" alt="Plus" class="img-btn">
+    </button>
+</div>
+
+<!-- Main content -->
+<div class="main-wrapper">
+
+    <!-- Video Feed Page -->
+    <div id="videoPage" class="page active">
+        <div class="video-container">
+            <img id="videoFeed" src="" alt="Camera Feed">
+            <div class="controls">
+                <button id="toggleBtn">Start Detection</button>
+                <span id="statusIndicator" class="stopped">Stopped</span>
+            </div>
+            <p id="faces">Found 0 faces | FPS: 0</p>
+        </div>
+    </div>
+
+    <!-- Detected Faces Page -->
+    <div id="detectedPage" class="page">
+        <h2>Detected Faces</h2>
+        <div id="facesGrid" class="faces-grid"></div>
+    </div>
+
+    <!-- Register Unknown Page -->
+    <div id="registerPage" class="page">
+        <h2>Register Unknown Faces</h2>
+        <div id="unknownFacesGrid" class="faces-grid"></div>
+    </div>
+
+</div>
+
+</body>
+</html>
