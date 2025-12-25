@@ -1,48 +1,259 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Face Recognition</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-        <script defer src="{{ url_for('static', filename='script.js') }}"></script>
-    </head>
-    <body>
-        <!-- Sidebar -->
-        <div id="sidebar" class="sidebar">
-            <button class="sidebar-btn active" data-page="videoPage">
-                <img src="{{ url_for('static', filename='assets/camera.png') }}" alt="Feed" class="img-btn">
-            </button>
-            <button class="sidebar-btn" data-page="detectedPage">
-                <img src="{{ url_for('static', filename='assets/face.png') }}" alt="Face" class="img-btn">
-            </button>
-            <button class="sidebar-btn" data-page="registerPage">
-                <img src="{{ url_for('static', filename='assets/plus.png') }}" alt="Plus" class="img-btn">
-            </button>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script defer src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
+<body>
+    <!-- Navigation Sidebar -->
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-robot"></i>
+            <span>FaceRec</span>
         </div>
-        <!-- Main content -->
-        <div class="main-wrapper">
-            <!-- Video Feed Page -->
-            <div id="videoPage" class="page active">
+        
+        <div class="nav-items">
+            <a href="#" class="nav-item active" data-page="videoPage">
+                <i class="fas fa-video"></i>
+                <span>Live Feed</span>
+            </a>
+            <a href="#" class="nav-item" data-page="detectedPage">
+                <i class="fas fa-user-check"></i>
+                <span>Known Faces</span>
+            </a>
+            <a href="#" class="nav-item" data-page="registerPage">
+                <i class="fas fa-user-plus"></i>
+                <span>Register New</span>
+            </a>
+            <a href="#" class="nav-item" data-page="statsPage">
+                <i class="fas fa-chart-bar"></i>
+                <span>Statistics</span>
+            </a>
+        </div>
+        
+        <div class="sidebar-footer">
+            <div class="status-indicator">
+                <div class="status-dot stopped"></div>
+                <span>System Status</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Live Feed Page -->
+        <section id="videoPage" class="page active">
+            <header class="page-header">
+                <h1><i class="fas fa-video"></i> Live Face Detection</h1>
+                <p class="page-description">Real-time face detection and recognition from webcam feed</p>
+            </header>
+            
+            <div class="video-section">
                 <div class="video-container">
-                    <img id="videoFeed" src="" alt="Camera Feed">
-                    <div class="controls">
-                        <button id="toggleBtn">Start Detection</button>
-                        <span id="statusIndicator" class="stopped">Stopped</span>
+                    <div class="video-wrapper">
+                        <img id="videoFeed" src="" alt="Camera Feed" class="video-frame">
+                        <div class="video-overlay">
+                            <div class="overlay-text" id="detectionStatus">
+                                <i class="fas fa-video-slash"></i> Detection Stopped
+                            </div>
+                        </div>
                     </div>
-                    <p id="faces">Found 0 faces | FPS: 0</p>
+                    
+                    <div class="video-controls">
+                        <button id="toggleBtn" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play"></i> Start Detection
+                        </button>
+                        <div class="stats-display">
+                            <div class="stat-box">
+                                <i class="fas fa-users"></i>
+                                <div>
+                                    <span class="stat-label">Faces Detected</span>
+                                    <span class="stat-value" id="faceCount">0</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <div>
+                                    <span class="stat-label">FPS</span>
+                                    <span class="stat-value" id="fpsCounter">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recent-detections">
+                    <h3><i class="fas fa-history"></i> Recent Detections</h3>
+                    <div id="recentDetections" class="detections-list">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="empty-state">
+                            <i class="fas fa-user-clock"></i>
+                            <p>No recent detections</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <!-- Detected Faces Page -->
-            <div id="detectedPage" class="page">
-                <h2>Detected Faces</h2>
-                <div id="facesGrid" class="faces-grid"></div>
+        </section>
+
+        <!-- Known Faces Page -->
+        <section id="detectedPage" class="page">
+            <header class="page-header">
+                <h1><i class="fas fa-user-check"></i> Known Faces Database</h1>
+                <p class="page-description">All registered faces in the system</p>
+            </header>
+            
+            <div class="page-controls">
+                <button id="refreshKnownBtn" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Refresh List
+                </button>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchFaces" placeholder="Search faces...">
+                </div>
+                <span class="total-count" id="totalKnownFaces">0 faces</span>
             </div>
-            <!-- Register Unknown Page -->
-            <div id="registerPage" class="page">
-                <h2>Register Unknown Faces</h2>
-                <div id="unknownFacesGrid" class="faces-grid"></div>
+            
+            <div id="facesGrid" class="faces-grid">
+                <!-- Will be populated by JavaScript -->
+                <div class="loading-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading faces...</p>
+                </div>
             </div>
+            
+            <div class="empty-state" id="noFacesState" style="display: none;">
+                <i class="fas fa-user-slash"></i>
+                <h3>No Faces Registered</h3>
+                <p>Go to the "Register New" tab to add faces to the database.</p>
+                <a href="#" class="btn btn-primary" data-page="registerPage">
+                    <i class="fas fa-user-plus"></i> Register First Face
+                </a>
+            </div>
+        </section>
+
+        <!-- Register New Faces Page -->
+        <section id="registerPage" class="page">
+            <header class="page-header">
+                <h1><i class="fas fa-user-plus"></i> Register New Faces</h1>
+                <p class="page-description">Register unknown faces detected in the live feed</p>
+            </header>
+            
+            <div class="page-controls">
+                <button id="refreshUnknownBtn" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Check for New Faces
+                </button>
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Start detection in Live Feed tab to see unknown faces here</span>
+                </div>
+            </div>
+            
+            <div id="unknownFacesGrid" class="faces-grid">
+                <!-- Will be populated by JavaScript -->
+                <div class="empty-state">
+                    <i class="fas fa-user-friends"></i>
+                    <h3>No Unknown Faces Detected</h3>
+                    <p>Make sure face detection is running and faces are visible in the camera.</p>
+                    <button class="btn btn-primary" onclick="switchToPage('videoPage')">
+                        <i class="fas fa-video"></i> Go to Live Feed
+                    </button>
+                </div>
+            </div>
+            
+            <div class="registration-tips">
+                <h3><i class="fas fa-lightbulb"></i> Tips for Better Registration</h3>
+                <ul>
+                    <li>Ensure good lighting on the face</li>
+                    <li>Face should be clearly visible and not obstructed</li>
+                    <li>Use a clear, recent photo for best results</li>
+                    <li>Enter accurate information for better identification</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Statistics Page -->
+        <section id="statsPage" class="page">
+            <header class="page-header">
+                <h1><i class="fas fa-chart-bar"></i> System Statistics</h1>
+                <p class="page-description">Analytics and system performance metrics</p>
+            </header>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Total Registered</h3>
+                        <div class="stat-number" id="statTotalFaces">0</div>
+                        <p class="stat-trend">Faces in database</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Recognition Rate</h3>
+                        <div class="stat-number" id="statRecognitionRate">0%</div>
+                        <p class="stat-trend">Successful identifications</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon warning">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Database Size</h3>
+                        <div class="stat-number" id="statDbSize">0 KB</div>
+                        <p class="stat-trend">Storage used</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon info">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Uptime</h3>
+                        <div class="stat-number" id="statUptime">0h</div>
+                        <p class="stat-trend">System running time</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recent-activity">
+                <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                <div id="activityLog" class="activity-list">
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="activity-content">
+                            <p>System initialized and ready</p>
+                            <span class="activity-time">Just now</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <i class="fas fa-spinner fa-spin fa-3x"></i>
+            <p>Processing...</p>
         </div>
-    </body>
+    </div>
+</body>
 </html>
