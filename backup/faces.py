@@ -1,5 +1,5 @@
 """
-This is the face recognition module I settled on. It handles loading known faces,
+This is the face recognition module. It handles loading known faces,
 detecting and recognizing faces in frames, and registering new faces.
 """
 
