@@ -1,7 +1,7 @@
 # Face Recognition Web App
 
-A real-time face detection and recognition system built with **Flask**, **OpenCV**, and **face_recognition**.  
-It provides a full web interface for live video streaming, registering new faces, and managing known ones.
+The project is designed to detect faces in real time, identify them, and display their Name + ID above their detected faces.
+It combines computer vision, feature extraction, and real time GUI display to create an interactive system for monitoring or attendance purposes.
 
 ## 📦 Installation Guide
 
