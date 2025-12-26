@@ -1,5 +1,5 @@
 """
-Face Recognition Module - Handles face detection, recognition, and registration
+Face Recognition Module - Handles face detection, recognition, registration, and data management.
 """
 
 import os

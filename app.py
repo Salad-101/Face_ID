@@ -1,3 +1,8 @@
+"""
+The main Flask application for real-time face recognition.
+Handles video streaming, face detection, registration, and data endpoints.
+"""
+
 import os
 import cv2
 import json
