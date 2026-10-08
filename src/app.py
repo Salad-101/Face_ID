@@ -11,7 +11,7 @@ import base64
 import threading
 import time
 from flask import Flask, render_template, Response, request, jsonify
-from faces import FaceRecognition
+from src.faces import FaceRecognition
 
 app = Flask(__name__, template_folder="frontend", static_folder="frontend")
 
