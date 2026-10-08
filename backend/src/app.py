@@ -11,9 +11,11 @@ import base64
 import threading
 import time
 from flask import Flask, render_template, Response, request, jsonify
-from src.faces import FaceRecognition
+from flask_cors import CORS
+from faces import FaceRecognition
 
 app = Flask(__name__, template_folder="frontend", static_folder="frontend")
+CORS(app, origins=["http://localhost:5173"])
 
 fr = FaceRecognition()
 
