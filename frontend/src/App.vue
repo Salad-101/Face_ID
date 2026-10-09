@@ -16,11 +16,9 @@ const state = reactive({
   unknownFacesSnapshot: [],
   recentDetections: [],
   page: 'videoPage',
-  fpsInterval: null,
   updateInterval: null,
   knownFacesInterval: null,
-  frameCount: 0,
-  startTime: Date.now(),
+  statsInterval: null,
   operationInProgress: false,
   cameraAvailable: false,
   formValues: {},
@@ -47,12 +45,42 @@ const filteredFaces = computed(() => {
   )
 })
 
-const uptime = computed(() =>
-  Math.floor((Date.now() - state.startTime) / (1000 * 60 * 60))
-)
+// Real numbers from the backend's /stats endpoint
+const stats = reactive({
+  totalRegistered: 0,
+  recognitionRate: null,
+  knownDetections: 0,
+  unknownDetections: 0,
+  dbBytes: 0,
+  uptimeSeconds: 0,
+})
 
-const recognitionRate = ref(0)
-const dbSize = computed(() => `${state.knownFaces.length * 50} KB`)
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatUptime(total) {
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
+
+const recognitionRate = computed(() =>
+  stats.recognitionRate === null ? '—' : `${stats.recognitionRate}%`
+)
+const dbSize = computed(() => formatBytes(stats.dbBytes))
+const uptime = computed(() => formatUptime(stats.uptimeSeconds))
+const detectionsNote = computed(() => {
+  const total = stats.knownDetections + stats.unknownDetections
+  return total
+    ? `${stats.knownDetections} of ${total} face detections`
+    : 'No detections yet'
+})
 
 function showToast(message, type = 'info', duration = 5000) {
   ui.toast = { message, type }
@@ -111,13 +139,9 @@ async function toggleDetection() {
     state.detecting = !state.detecting
 
     if (state.detecting) {
-      state.startTime = Date.now()
-      state.frameCount = 0
-
       clearIntervals()
 
-      state.fpsInterval = setInterval(calculateFPS, 1000)
-      state.updateInterval = setInterval(updateDetectionInfo, 2000)
+      state.updateInterval = setInterval(updateDetectionInfo, 1000)
 
       if (videoFeed.value) {
         videoFeed.value.src = `/video_feed?${Date.now()}`
@@ -146,10 +170,6 @@ async function toggleDetection() {
 }
 
 function clearDetectionIntervals() {
-  if (state.fpsInterval) {
-    clearInterval(state.fpsInterval)
-    state.fpsInterval = null
-  }
   if (state.updateInterval) {
     clearInterval(state.updateInterval)
     state.updateInterval = null
@@ -160,20 +180,13 @@ function clearIntervals() {
   clearDetectionIntervals()
 }
 
-function calculateFPS() {
-  const elapsed = (Date.now() - state.startTime) / 1000
-  state.fps = elapsed > 0 ? Math.round(state.frameCount / elapsed) : 0
-  state.startTime = Date.now()
-  state.frameCount = 0
-}
-
 async function updateDetectionInfo() {
   try {
     const response = await fetch('/faces_count')
     const data = await response.json()
 
     state.faceCount = data.faces || 0
-    state.frameCount++
+    state.fps = data.fps || 0
 
     await updateRecentDetections()
   } catch (error) {
@@ -298,23 +311,17 @@ async function updateRecentDetections() {
 
 async function loadStatistics() {
   try {
-    if (!state.knownFaces.length) {
-      await loadKnownFaces()
-    }
+    const response = await fetch('/stats')
+    const data = await response.json()
 
-    const response = await fetch('/detected_faces')
-    const detectedFaces = await response.json()
-
-    const knownDetected = detectedFaces.filter(
-      face => face.name !== 'Unknown'
-    ).length
-
-    recognitionRate.value =
-      detectedFaces.length > 0
-        ? Math.round((knownDetected / detectedFaces.length) * 100)
-        : 0
+    stats.totalRegistered = data.total_registered
+    stats.recognitionRate = data.recognition_rate
+    stats.knownDetections = data.known_detections
+    stats.unknownDetections = data.unknown_detections
+    stats.dbBytes = data.db_bytes
+    stats.uptimeSeconds = data.uptime_seconds
   } catch (error) {
-    console.error(error)
+    console.error('Error loading statistics:', error)
   }
 }
 
@@ -411,6 +418,10 @@ onMounted(async () => {
     if (state.page === 'detectedPage') loadKnownFaces()
   }, 30000)
 
+  state.statsInterval = setInterval(() => {
+    if (state.page === 'statsPage') loadStatistics()
+  }, 2000)
+
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -419,6 +430,10 @@ onBeforeUnmount(() => {
 
   if (state.knownFacesInterval) {
     clearInterval(state.knownFacesInterval)
+  }
+
+  if (state.statsInterval) {
+    clearInterval(state.statsInterval)
   }
 
   clearTimeout(toastTimer.value)
@@ -778,7 +793,7 @@ onBeforeUnmount(() => {
               <div class="p-5">
                 <h3 class="mb-1 text-xl font-bold">Unknown Face #{{ face.index + 1 }}</h3>
                 <p class="mb-4 text-sm text-text-muted">
-                  Snapshot taken at {{ new Date().toLocaleTimeString() }}
+                  Snapshot taken at {{ new Date((face.timestamp ?? Date.now() / 1000) * 1000).toLocaleTimeString() }}
                 </p>
 
                 <form @submit.prevent="registerFace(face, index)" class="flex flex-col gap-3">
@@ -883,10 +898,10 @@ onBeforeUnmount(() => {
           <div class="mb-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <div
               v-for="stat in [
-                { icon: 'fa-users', title: 'Total Registered', value: state.knownFaces.length, note: 'Faces in database', tone: 'primary' },
-                { icon: 'fa-check-circle', title: 'Recognition Rate', value: `${recognitionRate}%`, note: 'Successful identifications', tone: 'success' },
-                { icon: 'fa-database', title: 'Database Size', value: dbSize, note: 'Storage used', tone: 'warning' },
-                { icon: 'fa-clock', title: 'Uptime', value: `${uptime}h`, note: 'System running time', tone: 'info' }
+                { icon: 'fa-users', title: 'Total Registered', value: stats.totalRegistered, note: 'Faces in database', tone: 'primary' },
+                { icon: 'fa-check-circle', title: 'Recognition Rate', value: recognitionRate, note: detectionsNote, tone: 'success' },
+                { icon: 'fa-database', title: 'Database Size', value: dbSize, note: 'Images + data on disk', tone: 'warning' },
+                { icon: 'fa-clock', title: 'Uptime', value: uptime, note: 'Backend running time', tone: 'info' }
               ]"
               :key="stat.title"
               class="flex items-center gap-5 rounded-xl border border-border bg-card-bg p-6"
@@ -982,4 +997,3 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
-

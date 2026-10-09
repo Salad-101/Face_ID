@@ -1,1 +1,28 @@
 @import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #0f1117;
+  --color-card-bg: #1a1d27;
+  --color-card-hover: #232736;
+  --color-border: #2d3245;
+  --color-primary: #6366f1;
+  --color-primary-dark: #4f46e5;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #38bdf8;
+  --color-text-secondary: #a0a6b8;
+  --color-text-muted: #6b7185;
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.page-enter { animation: page-enter 0.3s ease-out; }
+
+@keyframes status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(34 197 94 / 0.6); }
+  50% { box-shadow: 0 0 0 6px rgb(34 197 94 / 0); }
+}
+.status-pulse { animation: status-pulse 2s infinite; }

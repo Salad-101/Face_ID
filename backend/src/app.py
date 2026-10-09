@@ -10,11 +10,16 @@ import numpy as np
 import base64
 import threading
 import time
-from flask import Flask, render_template, Response, request, jsonify
+from collections import deque
+from flask import Flask, Response, request, jsonify, send_from_directory
 from flask_cors import CORS
-from faces import FaceRecognition
+from faces import FaceRecognition, FACES_DIR
 
-app = Flask(__name__, template_folder="frontend", static_folder="frontend")
+# Serve the built Vue app (run `pnpm build` in frontend/) from frontend/dist.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DIST_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "frontend", "dist"))
+
+app = Flask(__name__, static_folder=DIST_DIR, static_url_path="")
 CORS(app, origins=["http://localhost:5173"])
 
 fr = FaceRecognition()
@@ -30,9 +35,16 @@ last_frame_lock = threading.Lock()
 unknown_faces_snapshot = []
 snapshot_lock = threading.Lock()
 
+# Real statistics (all guarded by stats_lock)
+SERVER_START = time.time()
+stats_lock = threading.Lock()
+frame_times = deque(maxlen=30)  # timestamps of recently processed frames
+known_detections = 0            # face observations matched to a registered person
+unknown_detections = 0          # face observations that matched nobody
+
 def generate_frames():
     """Generate video frames for streaming"""
-    global cap, detecting, last_frame
+    global cap, detecting, last_frame, known_detections, unknown_detections
     
     while True:
         if detecting and cap is not None:
@@ -81,6 +93,12 @@ def generate_frames():
                                         "image": buffer.tobytes(),
                                         "extra_data": next((f for f in fr.known_faces_data if f["name"] == name), None)
                                     })
+
+                    n_unknown = sum(1 for n in names if n == "Unknown")
+                    with stats_lock:
+                        unknown_detections += n_unknown
+                        known_detections += len(names) - n_unknown
+                        frame_times.append(time.time())
                 
                 # Encode the frame for streaming
                 ret, buffer = cv2.imencode('.jpg', frame)
@@ -115,7 +133,10 @@ def generate_frames():
 
 @app.route('/')
 def index():
-    return render_template("index.html")
+    if not os.path.exists(os.path.join(DIST_DIR, "index.html")):
+        return ("Frontend not built. Run `pnpm build` in frontend/, "
+                "or use `pnpm dev` and open http://localhost:5173.", 404)
+    return send_from_directory(DIST_DIR, "index.html")
 
 @app.route('/video_feed')
 def video_feed():
@@ -126,7 +147,41 @@ def video_feed():
 def faces_count():
     with frame_lock:
         total_faces = len(current_frame_faces) + len(current_frame_data)
-    return jsonify({"faces": total_faces})
+    return jsonify({"faces": total_faces, "fps": current_fps()})
+
+def current_fps():
+    """Real processing rate, measured from the timestamps of the last frames."""
+    with stats_lock:
+        if not detecting or len(frame_times) < 2:
+            return 0.0
+        if time.time() - frame_times[-1] > 2:  # stalled
+            return 0.0
+        span = frame_times[-1] - frame_times[0]
+        return round((len(frame_times) - 1) / span, 1) if span > 0 else 0.0
+
+def db_size_bytes():
+    """Total size of everything in the faces directory (images + data.json)."""
+    total = 0
+    if os.path.isdir(FACES_DIR):
+        for entry in os.scandir(FACES_DIR):
+            if entry.is_file():
+                total += entry.stat().st_size
+    return total
+
+@app.route('/stats')
+def stats():
+    with stats_lock:
+        known, unknown = known_detections, unknown_detections
+    total = known + unknown
+    return jsonify({
+        "total_registered": fr.get_face_count(),
+        "recognition_rate": round(known / total * 100) if total else None,
+        "known_detections": known,
+        "unknown_detections": unknown,
+        "db_bytes": db_size_bytes(),
+        "uptime_seconds": int(time.time() - SERVER_START),
+        "detecting": detecting,
+    })
 
 @app.route('/toggle_detection', methods=['POST'])
 def toggle_detection():
@@ -146,6 +201,9 @@ def toggle_detection():
                     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
                     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
                     detecting = True
+                    
+                    with stats_lock:
+                        frame_times.clear()
                     
                     # Clear previous data
                     with frame_lock:
@@ -261,6 +319,21 @@ def register_face():
             "message": f"Error: {str(e)}"
         })
 
+@app.route('/delete_face', methods=['POST'])
+def delete_face():
+    """Remove a registered face (database entry and image file)"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        name = (payload.get("name") or "").strip()
+        if not name:
+            return jsonify({"success": False, "message": "Name is required"}), 400
+        
+        if fr.delete_face(name):
+            return jsonify({"success": True, "message": f"{name} removed"})
+        return jsonify({"success": False, "message": f"{name} not found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
 @app.route('/known_faces_list')
 def known_faces_list():
     """Return list of all registered faces (static data)"""
@@ -270,7 +343,7 @@ def known_faces_list():
         
         for face in known_faces:
             try:
-                img_path = os.path.join("faces", face["filename"])
+                img_path = os.path.join(FACES_DIR, face["filename"])
                 if os.path.exists(img_path):
                     img = cv2.imread(img_path)
                     if img is not None:
